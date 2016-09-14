@@ -9,7 +9,7 @@ stepp=4;
 stat_max=zeros(length(lower:stepp:upper),1);
 stat_mean=zeros(length(lower:stepp:upper),1);
 stat_std=zeros(length(lower:stepp:upper),1);
-pow=20;
+pow2=4;
 z=1;
 %%
 h = waitbar(0,'Quantum computing being done...');
@@ -18,10 +18,10 @@ for n=lower:stepp:upper
     iteration=1000;
     time_step=ones(iteration,1);
     
-    position=(1:n);
-    linear_chordal=round((n/pi)^pow*asin(sin(pi/n*(position-1))).^pow);
     %% Algorithm
     parfor k=1:iteration
+        position=(1:n);
+        linear_chordal=pow2.^round((n/pi)*asin(sin(pi/n*(position-1))));
         interaction=1:n;
         for i=1:2:n-1
             interaction([i i+1])=interaction([i+1 i]);
@@ -33,7 +33,7 @@ for n=lower:stepp:upper
             interaction([a b])=interaction([b a]);
             interaction([interaction(a) interaction(b)])=interaction([interaction(b) interaction(a)]);
         end;
-        m=floor(n-sum(interaction==position)); %number of nodes to gather
+        m=pow2*floor(n-sum(interaction==position)); %number of nodes to gather
         
         %% Vector formulation
         
@@ -44,42 +44,69 @@ for n=lower:stepp:upper
         j=1;
         result=0;
         distance_vector=D2*ones(n,1);
+        tabu=1:n;
         
         while round(D2)>m && j<n^2/2 && result==0
-            for i=1:n-1
-                interac_temp=interaction;
-                interac_temp([i i+1])=interac_temp([i+1 i]);
-                interac_temp([interac_temp(i) interac_temp(i+1)])=interac_temp([interac_temp(i+1) interac_temp(i)]);
-                distance_vector(i)=min(round(sum(linear_chordal(abs(interac_temp-position)+1))),round(D2));
-                if round(distance_vector(i))==m
-                    result=1;
-                    break;
+            for i=tabu(tabu>0)
+                if i<n
+                    interac_temp=interaction;
+                    interac_temp([i i+1])=interac_temp([i+1 i]);
+                    interac_temp([interac_temp(i) interac_temp(i+1)])=interac_temp([interac_temp(i+1) interac_temp(i)]);
+                    distance_vector(i)=min(round(sum(linear_chordal(abs(interac_temp-position)+1))),round(D2));
+                    if round(distance_vector(i))==m
+                        result=1;
+                        break;
+                    end;
+                else
+                    interac_temp=interaction;
+                    interac_temp([1 n])=interac_temp([n 1]);
+                    interac_temp([interac_temp(1) interac_temp(n)])=interac_temp([interac_temp(n) interac_temp(1)]);
+                    distance_vector(n)=min(round(sum(linear_chordal(abs(interac_temp-position)+1))),round(D2));
+                    if round(distance_vector(n))==m
+                        result=1;
+                    end;
                 end;
             end;
             
-            interac_temp=interaction;
-            interac_temp([1 n])=interac_temp([n 1]);
-            interac_temp([interac_temp(1) interac_temp(n)])=interac_temp([interac_temp(n) interac_temp(1)]);
-            distance_vector(n)=min(round(sum(linear_chordal(abs(interac_temp-position)+1))),round(D2));
-            if round(distance_vector(n))==m
-                result=1;
+            [mini,index]=min(distance_vector);
+            
+            tabu(index)=0;
+            if index==1
+                tabu(n)=0;
+                tabu(2)=0;
+            elseif index==n
+                tabu(1)=0;
+                tabu(n-1)=0;
+            else
+                tabu(index+1)=0;
+                tabu(index-1)=0;
             end;
             
-            [mini,index]=min(distance_vector);
-            if min(distance_vector)==max(distance_vector)
-                index=randi(n);
+            if sum(tabu)==0
+                tabu=1:n;
             end;
-            if index==n
-                permutation(j,:)=[n,1,mini];
-                interaction([n 1])=interaction([1 n]);
-                interaction([interaction(1) interaction(n)])=interaction([interaction(n) interaction(1)]);
+            
+            if min(distance_vector)<D2
+                if min(distance_vector)==max(distance_vector)
+                    index=randi(n);
+                    %tabu=1:n;
+                end;
+                
+                if index==n
+                    permutation(j,:)=[n,1,mini];
+                    interaction([n 1])=interaction([1 n]);
+                    interaction([interaction(1) interaction(n)])=interaction([interaction(n) interaction(1)]);
+                else
+                    permutation(j,:)=[index,index+1,mini];
+                    interaction([index index+1])=interaction([index+1 index]);
+                    interaction([interaction(index) interaction(index+1)])=interaction([interaction(index+1) interaction(index)]);
+                end;
+                j=j+1;
+                D2=mini;
+                
             else
-                permutation(j,:)=[index,index+1,mini];
-                interaction([index index+1])=interaction([index+1 index]);
-                interaction([interaction(index) interaction(index+1)])=interaction([interaction(index+1) interaction(index)]);
+                tabu=1:n;
             end;
-            j=j+1;
-            D2=mini;
         end;
         permutation(j:n^2/2,:)=[];
         

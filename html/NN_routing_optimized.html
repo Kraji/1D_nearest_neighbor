@@ -1,0 +1,402 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>NN_routing_optimized</title><meta name="generator" content="MATLAB 8.5"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2016-09-13"><meta name="DC.source" content="NN_routing_optimized.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#2">Choice of the parameters</a></li><li><a href="#3">Definition of the example interaction</a></li><li><a href="#4">Distance definition</a></li><li><a href="#5">Permutation</a></li><li><a href="#6">Number of time step</a></li></ul></div><pre class="codeinput">clear
+close <span class="string">all</span>
+set(0,<span class="string">'DefaultFigureWindowStyle'</span>,<span class="string">'docked'</span>)
+
+<span class="comment">% I present here an algorithm to sort a 1D cyclic nearest neighbor network.</span>
+<span class="comment">% The idea is to gather pairs of nodes defined using only nearest neighbor</span>
+<span class="comment">% permutations.</span>
+</pre><h2>Choice of the parameters<a name="2"></a></h2><p>I define first the number of nodes our 1D cyclic NN network will have.</p><pre class="codeinput">n=10; <span class="comment">% Number of nodes in the network</span>
+position=1:n; <span class="comment">% Labels of the physical nodes.</span>
+</pre><h2>Definition of the example interaction<a name="3"></a></h2><p>Here I generate a random interaction graph called "interaction" that states that the i-th node should be gathered with the interaction(i)-th node of the network.</p><pre class="codeinput">interaction=1:n;
+<span class="keyword">for</span> i=1:2:n-1
+    interaction([i i+1])=interaction([i+1 i]);
+<span class="keyword">end</span>;
+
+<span class="keyword">for</span> i=1:2*n
+    a=randi(n);
+    b=randi(n);
+    interaction([interaction(a) interaction(b)])=interaction([interaction(b) interaction(a)]);
+    interaction([a b])=interaction([b a]);
+<span class="keyword">end</span>
+temp=interaction;
+display(interaction);
+</pre><pre class="codeoutput">
+interaction =
+
+     6     8     7     9    10     1     3     2     4     5
+
+</pre><h2>Distance definition<a name="4"></a></h2><p>Here I define a function called "linear_chordal" that defines the distance between two nodes i and j to be linear_chordal(abs(i-j)+1).</p><pre class="codeinput"><span class="comment">% This is a parameter that that can be tuned to optimize the algorithm.</span>
+pow2=4;
+
+<span class="comment">% This is the definition of the distance between two nodes in the network.</span>
+linear_chordal=pow2.^round((n/pi)*asin(sin(pi/n*(position-1))));
+
+<span class="comment">% The actual overall distance in the network is D2</span>
+diag_distance=linear_chordal(abs(interaction-position)+1)';
+D2=sum(diag_distance);
+
+<span class="comment">% The number "m" defined below is the minimum distance one can achieve if</span>
+<span class="comment">% all nodes are gathered. This will be the goal to reach when we look at</span>
+<span class="comment">% optimal permutations.</span>
+m=pow2*round(n-sum(interaction==position))+sum(interaction==position);
+</pre><h2>Permutation<a name="5"></a></h2><p>In this section we find the optimal permutation to sort the network. For this purpose, we apply all nearest neighbor transpositions and look how the overall distance evolves. We only keep at each iteration the transposition that lowers the most the overall distance. Then we create a tabu list stating that we cannot permute nodes that have been permuted recently. If the tabu list is full or if one cannot reduce the overall distance anymore we empty the tabu list.</p><pre class="codeinput">permutation=zeros(n^2/2,3); <span class="comment">% This matrix will tell us which transposition to do to sort the network, it also tells us the overall distance after each transposition</span>
+j=1;
+
+result=0; <span class="comment">%This will be declared to 1 when we reach an optimal permutation to break the while loop.</span>
+disp([<span class="string">'The overall distance is '</span> num2str(D2)]);
+distance_vector=D2*ones(n,1); <span class="comment">%In this vector we will store the overall distance obtained after applying each transposition.</span>
+tabu=1:n; <span class="comment">% We introduce a tabu list.</span>
+
+<span class="keyword">while</span> round(D2)&gt;m &amp;&amp; j&lt;n^2/2 &amp;&amp; result==0
+    <span class="keyword">for</span> i=tabu(tabu&gt;0)
+        <span class="keyword">if</span> i&lt;n
+            interac_temp=interaction;
+
+            interac_temp([interac_temp(i) interac_temp(i+1)])=interac_temp([interac_temp(i+1) interac_temp(i)]);
+            interac_temp([i i+1])=interac_temp([i+1 i]);
+
+            distance_vector(i)=min(round(sum(linear_chordal(abs(interac_temp-position)+1))),round(D2));
+            <span class="keyword">if</span> round(distance_vector(i))==m
+                disp(<span class="string">'Optimal permutation has been found'</span>);
+                result=1;
+                <span class="keyword">break</span>;
+            <span class="keyword">end</span>;
+        <span class="keyword">else</span>
+            interac_temp=interaction;
+
+            interac_temp([interac_temp(1) interac_temp(n)])=interac_temp([interac_temp(n) interac_temp(1)]);
+            interac_temp([1 n])=interac_temp([n 1]);
+
+            distance_vector(n)=min(round(sum(linear_chordal(abs(interac_temp-position)+1))),round(D2));
+            <span class="keyword">if</span> round(distance_vector(n))==m
+                disp(<span class="string">'Optimal permutation has been found'</span>);
+                result=1;
+            <span class="keyword">end</span>
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+
+    [mini,index]=min(distance_vector);
+
+    tabu(index)=0;
+    <span class="keyword">if</span> index==1
+        tabu(n)=0;
+        tabu(2)=0;
+    <span class="keyword">elseif</span> index==n
+        tabu(1)=0;
+        tabu(n-1)=0;
+    <span class="keyword">else</span>
+        tabu(index+1)=0;
+        tabu(index-1)=0;
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> sum(tabu)==0
+        tabu=1:n;
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> min(distance_vector)&lt;D2
+        <span class="keyword">if</span> min(distance_vector)==max(distance_vector)
+            index=randi(n);
+        <span class="keyword">end</span>
+        <span class="keyword">if</span> index==n
+            permutation(j,:)=[n,1,mini];
+            interaction([interaction(1) interaction(n)])=interaction([interaction(n) interaction(1)]);
+            interaction([n 1])=interaction([1 n]);
+        <span class="keyword">else</span>
+            permutation(j,:)=[index,index+1,mini];
+            interaction([interaction(index) interaction(index+1)])=interaction([interaction(index+1) interaction(index)]);
+            interaction([index index+1])=interaction([index+1 index]);
+        <span class="keyword">end</span>
+        j=j+1;
+        D2=mini;
+    <span class="keyword">else</span>
+        tabu=1:n;
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+permutation(j:n^2/2,:)=[];
+</pre><pre class="codeoutput">The overall distance is 7168
+Optimal permutation has been found
+</pre><h2>Number of time step<a name="6"></a></h2><p>In this section, we have all the transpositions that we need to implement to sort the network and we order them to minimize the number of parallel operations we can do in one time step to minimize the overhead of the network.</p><pre class="codeinput">tr=permutation(:,1:2)';
+tr2=zeros(size(tr,2),n);
+time_step=1;
+
+<span class="keyword">for</span> i=1:size(tr,2)
+    <span class="keyword">for</span> j=time_step:-1:1
+        <span class="keyword">if</span> tr2(j,tr(1,i))==0 &amp;&amp; tr2(j,tr(2,i))==0 &amp;&amp; j~=1
+            <span class="keyword">continue</span>
+        <span class="keyword">elseif</span> j==1 &amp;&amp; tr2(j,tr(1,i))==0 &amp;&amp; tr2(j,tr(2,i))==0
+            tr2(j,tr(1,i))=tr(2,i);
+            tr2(j,tr(2,i))=tr(1,i);
+            <span class="keyword">break</span>;
+        <span class="keyword">elseif</span> tr2(j,tr(1,i))~=0 || tr2(j,tr(2,i))~=0
+            tr2(j+1,tr(1,i))=tr(2,i);
+            tr2(j+1,tr(2,i))=tr(1,i);
+            time_step=max(time_step,j+1);
+            <span class="keyword">break</span>;
+        <span class="keyword">end</span>
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+tr2(time_step+1:size(tr,2),:)=[];
+
+<span class="comment">% This the list of permutations that one needs to do to sort the network.</span>
+<span class="comment">% One needs to read this matrix line per line.</span>
+<span class="comment">% On each line if you see for instance &laquo; 0 0 4 3 0 7 6 0 0 &raquo; it means that elements 3 and 4 have to be permuted, and elements 7 and 6 have to be permuted.</span>
+<span class="comment">% The number of lines gives you the number of time steps required.</span>
+display(tr2);
+disp([ num2str(time_step) <span class="string">' timesteps required'</span>]);
+</pre><pre class="codeoutput">
+tr2 =
+
+     2     1     0     5     4     0     0     9     8     0
+    10     0     4     3     6     5     0     0     0     1
+     0     3     2     5     4     7     6     0     0     0
+
+3 timesteps required
+</pre><p class="footer"><br><a href="http://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2015a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+clear
+close all
+set(0,'DefaultFigureWindowStyle','docked')
+
+% I present here an algorithm to sort a 1D cyclic nearest neighbor network.
+% The idea is to gather pairs of nodes defined using only nearest neighbor
+% permutations.
+
+%% Choice of the parameters
+% I define first the number of nodes our 1D cyclic NN network will have.
+
+n=10; % Number of nodes in the network
+position=1:n; % Labels of the physical nodes.
+
+%% Definition of the example interaction
+% Here I generate a random interaction graph called "interaction" that
+% states that the i-th node should be gathered with the interaction(i)-th
+% node of the network.
+
+interaction=1:n;
+for i=1:2:n-1
+    interaction([i i+1])=interaction([i+1 i]);
+end;
+
+for i=1:2*n
+    a=randi(n);
+    b=randi(n);
+    interaction([interaction(a) interaction(b)])=interaction([interaction(b) interaction(a)]);
+    interaction([a b])=interaction([b a]);
+end
+temp=interaction;
+display(interaction);
+
+%% Distance definition
+% Here I define a function called "linear_chordal" that defines the
+% distance between two nodes i and j to be linear_chordal(abs(i-j)+1).
+
+
+% This is a parameter that that can be tuned to optimize the algorithm.
+pow2=4;
+
+% This is the definition of the distance between two nodes in the network.
+linear_chordal=pow2.^round((n/pi)*asin(sin(pi/n*(position-1)))); 
+
+% The actual overall distance in the network is D2
+diag_distance=linear_chordal(abs(interaction-position)+1)';
+D2=sum(diag_distance);
+
+% The number "m" defined below is the minimum distance one can achieve if
+% all nodes are gathered. This will be the goal to reach when we look at
+% optimal permutations.
+m=pow2*round(n-sum(interaction==position))+sum(interaction==position); 
+
+%% Permutation
+% In this section we find the optimal permutation to sort the network. For
+% this purpose, we apply all nearest neighbor transpositions and look how
+% the overall distance evolves. We only keep at each iteration the
+% transposition that lowers the most the overall distance. Then we create a
+% tabu list stating that we cannot permute nodes that have been permuted
+% recently. If the tabu list is full or if one cannot reduce the overall
+% distance anymore we empty the tabu list.
+
+permutation=zeros(n^2/2,3); % This matrix will tell us which transposition to do to sort the network, it also tells us the overall distance after each transposition
+j=1;
+
+result=0; %This will be declared to 1 when we reach an optimal permutation to break the while loop.
+disp(['The overall distance is ' num2str(D2)]);
+distance_vector=D2*ones(n,1); %In this vector we will store the overall distance obtained after applying each transposition.
+tabu=1:n; % We introduce a tabu list.
+
+while round(D2)>m && j<n^2/2 && result==0
+    for i=tabu(tabu>0)
+        if i<n
+            interac_temp=interaction;
+            
+            interac_temp([interac_temp(i) interac_temp(i+1)])=interac_temp([interac_temp(i+1) interac_temp(i)]);
+            interac_temp([i i+1])=interac_temp([i+1 i]);
+            
+            distance_vector(i)=min(round(sum(linear_chordal(abs(interac_temp-position)+1))),round(D2));
+            if round(distance_vector(i))==m
+                disp('Optimal permutation has been found');
+                result=1;
+                break;
+            end;
+        else
+            interac_temp=interaction;
+            
+            interac_temp([interac_temp(1) interac_temp(n)])=interac_temp([interac_temp(n) interac_temp(1)]);
+            interac_temp([1 n])=interac_temp([n 1]);
+            
+            distance_vector(n)=min(round(sum(linear_chordal(abs(interac_temp-position)+1))),round(D2));
+            if round(distance_vector(n))==m
+                disp('Optimal permutation has been found');
+                result=1;
+            end
+        end
+    end
+    
+    [mini,index]=min(distance_vector);
+    
+    tabu(index)=0;
+    if index==1
+        tabu(n)=0;
+        tabu(2)=0;
+    elseif index==n
+        tabu(1)=0;
+        tabu(n-1)=0;
+    else
+        tabu(index+1)=0;
+        tabu(index-1)=0;
+    end
+    
+    if sum(tabu)==0
+        tabu=1:n;
+    end
+    
+    if min(distance_vector)<D2
+        if min(distance_vector)==max(distance_vector)
+            index=randi(n);
+        end
+        if index==n
+            permutation(j,:)=[n,1,mini];
+            interaction([interaction(1) interaction(n)])=interaction([interaction(n) interaction(1)]);
+            interaction([n 1])=interaction([1 n]);
+        else
+            permutation(j,:)=[index,index+1,mini];
+            interaction([interaction(index) interaction(index+1)])=interaction([interaction(index+1) interaction(index)]);
+            interaction([index index+1])=interaction([index+1 index]);
+        end
+        j=j+1;
+        D2=mini;
+    else
+        tabu=1:n;
+    end
+end
+
+permutation(j:n^2/2,:)=[];
+
+%% Number of time step
+% In this section, we have all the transpositions that we need to implement
+% to sort the network and we order them to minimize the number of parallel
+% operations we can do in one time step to minimize the overhead of the
+% network.
+
+tr=permutation(:,1:2)';
+tr2=zeros(size(tr,2),n);
+time_step=1;
+
+for i=1:size(tr,2)
+    for j=time_step:-1:1
+        if tr2(j,tr(1,i))==0 && tr2(j,tr(2,i))==0 && j~=1
+            continue
+        elseif j==1 && tr2(j,tr(1,i))==0 && tr2(j,tr(2,i))==0
+            tr2(j,tr(1,i))=tr(2,i);
+            tr2(j,tr(2,i))=tr(1,i);
+            break;
+        elseif tr2(j,tr(1,i))~=0 || tr2(j,tr(2,i))~=0
+            tr2(j+1,tr(1,i))=tr(2,i);
+            tr2(j+1,tr(2,i))=tr(1,i);
+            time_step=max(time_step,j+1);
+            break;
+        end
+    end
+end
+
+tr2(time_step+1:size(tr,2),:)=[];
+
+% This the list of permutations that one needs to do to sort the network. 
+% One needs to read this matrix line per line. 
+% On each line if you see for instance « 0 0 4 3 0 7 6 0 0 » it means that elements 3 and 4 have to be permuted, and elements 7 and 6 have to be permuted. 
+% The number of lines gives you the number of time steps required.
+display(tr2);
+disp([ num2str(time_step) ' timesteps required']);
+
+
+##### SOURCE END #####
+--></body></html>
